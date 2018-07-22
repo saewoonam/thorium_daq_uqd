@@ -1,12 +1,13 @@
 import os
 # import ttag_cmd as ttag
-import shm_buffer
+import shm_buffer as ttag
 import numpy as np
 import datetime
 import saveStyle
 import logging
 import myFileClass
 import socket
+import functools
 
 hostname = socket.gethostname()
 logger = logging.getLogger(__name__)
@@ -30,9 +31,14 @@ class UQDLogger(object):
             logger.info("next free buffer: %d" % num)
         else:
             num = num + 1
-        # buf = ttag.TTBuffer(num - 1)
-        buf = shm_buffer.buffer(num - 1)
+        buf = ttag.TTBuffer(num - 1)
+        # buf = shm_buffer.buffer(num - 1)
         # cmd = ttag.CMDBuffer(num - 1)
+
+        if ttag.__name__ == 'shm_buffer':
+            self.cmd = ttag.CmdBuffer()
+            self.buff.start = functools.partial(self.cmd.write, 'unpause')
+            self.buff.stop = functools.partial(self.cmd.write, 'pause')
 
         self.fname = ''
         self.buff = buf
