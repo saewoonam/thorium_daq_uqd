@@ -98,12 +98,10 @@ class Buffer(object):
 
     def addarray(self, ch, t):
         self.indices[0] = self.indices[0] + len(ch)
-        self.ch.add(ch)
-        self.t.add(t)
+        self.ch.add(ch, self.datapoints)  # need to specify where to add
+        self.t.add(t, self.datapoints)  # to work in other processes
         self.indices[1] = self.indices[1] + len(ch)
         self.realtime[0] = time.time()
-        print(self.datapoints)
-        print(self.datapoints)
 
 
     def __del__(self):
