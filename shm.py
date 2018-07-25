@@ -9,13 +9,13 @@ import logzero
 from logzero import logger
 
 
+logzero.loglevel(logging.INFO)
 if os.name == 'nt':
     uname = 'nt'
 else:
     uname = platform.os.uname()
-    posix()
-logzero.loglevel(logging.INFO)
-def posix():
+    # posix()
+#def posix():
     global ffi, C, uname
     # logzero.loglevel(logging.DEBUG)
     ffi = FFI()

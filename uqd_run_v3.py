@@ -1,6 +1,6 @@
 from __future__ import print_function
-# import uqd
-import uqd_fake as uqd
+import uqd
+# import uqd_fake as uqd
 import atexit
 import threading
 import signal
@@ -127,11 +127,13 @@ def main():
 
 def watch_cmd():
     global RUNNING, cmd, buf, ttag, ttag_settings
+    global overwrite
     logger.info('starting watch command')
     while RUNNING:
         if cmd.query():
+            overwrite = False
             logger.info('got command to process: %s' % cmd.command)
-            logger.info('blank line')
+            logger.info('got command to process: %s' % cmd.command)
             if cmd.command == 'calibrate':
                 if ttag.status:
                     logger.info('Can not calibrate while running')
@@ -148,8 +150,9 @@ def watch_cmd():
                 ttag.start()
                 cmd.clear_query()
             elif cmd.command == 'trigger':
-                if ttag.status:
-                    ttag.stop()
+                # if ttag.status:
+                #     ttag.stop()
+                overwrite = False
                 f = shm_buffer.shm.read_file('settings.yaml')
                 new_settings = yaml.load(f)
                 send_mask_bool = False
@@ -170,12 +173,13 @@ def watch_cmd():
                     buf.add(29, 64)
                 cmd.clear_query()
                 save_settings()
-                ttag.start()
-                logger.info('')  # add extra line to so messages are not overwritten
+                # ttag.start()
+                logger.info('Done with trigger processing')
             else:
                 logger.error('Unknown command: %s' % cmd.command)
                 logger.error('blank line')
                 cmd.clear_query()
+            overwrite = True
         time.sleep(1)
 
 
@@ -201,8 +205,8 @@ def daq_test():
 # @profile
 def daq():
     # ttag, buf, cmd = configuration
+    global ttag, cmd, buf, RUNNING, overwrite
     overwrite = True  # overwrite line when updating
-    global ttag, cmd, buf, RUNNING
     print('')
     ttag.start()
     print('started')
@@ -232,11 +236,12 @@ def daq():
             else:
                 buf.addarray(channels, tags)
                 if SHOW_PROGRESS:
-                    sys.stdout.write("\033[F")
-                    sys.stdout.write("\033[K")
+                    if overwrite:
+                        sys.stdout.write("\033[F")
+                        sys.stdout.write("\033[K")
                     print(time.asctime(), '(num, index_to_write)',
                           (len(channels), buf.indices[1]))
-                    overwrite = False
+                    # overwrite = True
                 # del(channels)
                 # del(tags)
                 # del(result)

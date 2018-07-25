@@ -6,7 +6,7 @@ import logging
 import logzero
 import os.path
 from logzero import logger
-
+import saveStyle
 
 logzero.loglevel(logging.INFO)
 
@@ -102,6 +102,9 @@ class Buffer(object):
         self.t.add(t)
         self.indices[1] = self.indices[1] + len(ch)
         self.realtime[0] = time.time()
+        print(self.datapoints)
+        print(self.datapoints)
+
 
     def __del__(self):
         print('running __del__, is this intended?')
@@ -111,12 +114,14 @@ class Buffer(object):
     def __getitem__(self, items):
         # print(type(items), items)
         if isinstance(items, (int, long, np.integer)):
+            # print(self.indices)
             minindex = max(0, self.indices[0])
             maxindex = self.indices[1]
             if items>=0:  # Use absolute index number
                 if items < minindex:
-                    raise ValueError("index [%d] not valid, too small, min=%d" %
-                            (items, minindex))
+                    # print('indices', self.indices)
+                    raise ValueError("index [%d] not valid, too small, min=%d %r" %
+                                     (items, minindex, self.indices))
                 if items > maxindex:
                     raise ValueError("index [%d] not valid, too big, min=%d" %
                             (items, maxindex))
@@ -161,8 +166,9 @@ class Buffer(object):
                         raise ValueError("stop index out of buffer bounds")
                     stop = maxindex + stop
                 else:
-                    if (stop >= maxindex or stop < minindex):
-                        raise ValueError("stop index out of buffer bounds")
+                    if (stop > maxindex or stop < minindex):
+                        raise ValueError("stop index out of buffer bounds, idx: %d (%d, %d)"
+                                         % (stop, minindex, maxindex) )
             else:
                 stop = maxindex
             # print('start', start, 'stop', stop)
@@ -186,7 +192,7 @@ class Buffer(object):
         return (ch, t)
 
     def valid(self, index):
-        return True if ((self[index][0] < 17) and (self[index][0]>=0)) else False
+        return True if ((self[index][0] <= self.channels) and (self[index][0]>0))else False
 
     def find_idx(self, left, right, stopbin):
         while (right - left) > 1:
@@ -220,15 +226,16 @@ class Buffer(object):
 
 
     def singles(self, deltat=1, resolution=1. / 6.4e9, wait=True):
-        #d = buf[:]
-        deltat_bins = (np.round(deltat / resolution))
-        # print('deltat_bins', deltat_bins)
+        deltat_bins = np.uint64(np.round(deltat / resolution))
+        # initialize results array
+        results = np.zeros(self.channels)
+        # wait for deltat time if desired
         if wait:
             start = time.time()
             time.sleep(deltat+0.1)
             last_tag_cputime = 1*self.realtime[0]
             if last_tag_cputime < start:
-                return ([0], [0])
+                return results  # ([0], [0])
             elif last_tag_cputime - start < deltat:
                 # print('search for tags')
                 deltat = last_tag_cputime - start
@@ -252,14 +259,40 @@ class Buffer(object):
             stopbin = self[right][1] - deltat_bins
             idx = self.find_idx(left, right, stopbin)
         # print('indices', self.indices, left, right)
+        msg = '%d left:%d, right:%d, dt:%d, %r %r' %( self.datapoints, idx, right,
+              self[right][1]-self[idx][1], self[right], self[idx])
+        logger.info(msg)
+        msg = 'dt: %d' % (self[right][1]-self[idx][1])
+        logger.info(msg)
         # print('dt', self[right][1]-self[idx][1])
         # return np.bincount(self[idx:(right)][0])
         histogram = np.unique(self[idx:(right)][0], return_counts=True)
+        # print('histogram', histogram)
         results = np.zeros(self.channels)
+        # print('channels', self.channels)
         for (x, n) in zip(histogram[0], histogram[1]):
-            if x>0: #  channel numbering starts with 1
+            if (x>0) and (x<=self.channels): #  channel numbering starts with 1
                 results[x-1] = n
         return results
+
+    def continuous(self, fname, buf, oldpoint):
+        while True:
+            lastpoint = buf.datapoints
+            append(fname, buf[oldpoint:lastpoint])
+            oldpoint = lastpoint
+            time.sleep(1)
+
+    def append(self, fname, start, stop):
+        data = self[start:stop]
+        if len(data[0])>0:
+            array = np.zeros(len(data[0]), dtype=saveStyle.DTmin)
+            array['ch'] = data[0]
+            array['timetag'] = data[1]
+            with open(fname, 'ab') as fp:
+                fp.write(array.tobytes())
+                fp.flush()
+        return array
+
 TTBuffer = Buffer
 
 class CmdBuffer(object):

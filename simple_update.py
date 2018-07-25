@@ -2,19 +2,20 @@
 import remi.gui as gui
 from remi import start, App
 import shm_buffer
-import reset
+# import reset
+import bias
 import numpy as np
 import threading
+import time
 
-
-buf= shm_buffer.buffer()
+buf = shm_buffer.Buffer()
 
 class MyApp(App):
     def __init__(self, *args):
         super(MyApp, self).__init__(*args)
 
     def main(self, name='world'):
-        #margin 0px auto allows to center the app to the screen
+        # margin 0px auto allows to center the app to the screen
         wid = gui.VBox(width=300, height=300, margin='0px auto')
         counts_labels = []
         count_lbl = gui.Label('Counts', width='80%', height='20%')
@@ -26,7 +27,7 @@ class MyApp(App):
             lbl.style['margin'] = 'auto'
             counts_labels.append(lbl)
         self.counts_labels = counts_labels
-        print(counts_labels)
+        # print(counts_labels)
         bt = gui.Button('Get Counts', width=200, height=40)
         bt.style['margin'] = 'auto 50px'
         bt.style['background-color'] = 'green'
@@ -65,7 +66,7 @@ class MyApp(App):
     def update_counts(self, widget, lbl):
         if self.running:
             counts = buf.singles()
-            print(counts)
+            print(time.time(), buf.datapoints, counts[:4])
             idx = 1
             for lbl in self.counts_labels:
                 lbl.set_text('Ch %d: %d' % (idx, counts[idx-1]))
@@ -81,7 +82,8 @@ class MyApp(App):
         self.on_button_pressed(widget, lbl)
 
     def reset_button_pressed(self, widget, lbl):
-        reset.reset()
+        # reset.reset()
+        bias.reset()
         lbl.set_text('Finished reset')
         # widget.set_text('Hi!')
 
