@@ -1,4 +1,5 @@
 from __future__ import print_function
+import struct
 import uqd
 # import uqd_fake as uqd
 import atexit
@@ -40,6 +41,10 @@ def load_settings(number_channels=8):
         c = channel + 1  # setting threshold, 1-indexing
         logger.info('setting %d, threshold %f' %(c, setting[0]))
         ttag.set_input_threshold(c, setting[0])
+        msg = '%02d %4.3f' % (c, setting[0])
+        out = struct.unpack('Q', msg)[0]
+        buf.add(29, out)
+
     logger.info('')
     set_mask()
     
@@ -97,13 +102,11 @@ def set_mask():
     logger.info('')
 
 def main(): 
-    global ttag, cmd, buf, RUNNING
+    global ttag, cmd, buf, RUNNING, old_datapoints
     ttag = uqd.CTimeTag()
     ttag.open()
     number_channels = ttag.get_no_inputs()
     print('number of channels %d' % (number_channels))
-    load_settings()
-    save_settings()
     # sys.exit(-1)
     # buf = ttag_cmd.TTBuffer(0, create=True, datapoints=1<<29)
     # cmd = ttag_cmd.CMDBuffer(0, create=True, ch=number_channels)
@@ -111,6 +114,9 @@ def main():
     # tags = np.nparray(datapoints=1<<20, dtype=np.uint64) 
     buf = shm_buffer.Buffer(size=1<<24)
     buf.channels = number_channels  # set number of channels available
+    load_settings()
+    save_settings()
+    old_datapoints = buf.datapoints
     cmd = shm_buffer.CmdBuffer()
     logger.debug('Start watch_cmd thread')
     cmd_thread = threading.Thread(target=watch_cmd)
@@ -163,7 +169,10 @@ def watch_cmd():
                             ch = i+1
                             level = new_settings[i][0]
                             ttag.set_input_threshold(ch, level)
-                            buf.add(29, ch)
+                            msg = '%02d %4.3f' % (ch, level)
+                            out = struct.unpack('Q', msg)[0]
+                            print('msg: %r %ud' %(msg, out))
+                            buf.add(29, out)
                             logger.info('changed ch %d threshold to %f' % (ch, level))
                         if new_settings[i][1] != ttag_settings[i][1]:
                             send_mask_bool = True
@@ -205,7 +214,7 @@ def daq_test():
 # @profile
 def daq():
     # ttag, buf, cmd = configuration
-    global ttag, cmd, buf, RUNNING, overwrite
+    global ttag, cmd, buf, RUNNING, overwrite, old_datapoints
     overwrite = True  # overwrite line when updating
     print('')
     ttag.start()
@@ -245,7 +254,14 @@ def daq():
                 # del(channels)
                 # del(tags)
                 # del(result)
+                old_datapoints = buf.datapoints
         else:
+            if old_datapoints < buf.datapoints:
+                sys.stdout.write("\033[F")
+                sys.stdout.write("\033[K")
+                print(time.asctime(), '(num, index_to_write)',
+                      (0, buf.datapoints))
+
             time.sleep(0.25)
             # if overwrite:
             #     sys.stdout.write("\033[F")
