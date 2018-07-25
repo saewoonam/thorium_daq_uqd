@@ -2,7 +2,10 @@ import usb3100
 import os
 import ruamel.yaml
 import time
+import struct
+import shm_buffer
 
+buf = shm_buffer.Buffer()
 yaml = ruamel.yaml.YAML()
 config_file = 'bias.yaml'
 vsrc = usb3100.dev(PRODUCT_ID=156)
@@ -17,8 +20,21 @@ def save():
     yaml.dump(bias, open(config_file, 'w'))
 # print(bias)
 
+def build_ttag(ch, v):
+    msg = '%02d %4.3f' % (ch, v)
+    out = struct.unpack('Q', msg)[0]
+    # print('build_ttag %r' % out)
+    return out
+
+def build_ttag_time():
+    t = time.time()
+    msg = struct.pack('d', t)
+    out = struct.unpack('Q', msg)[0]
+    return out
 
 def reset(list_=[]):
+    print('About to reset')
+    buf.add(63, build_ttag_time())
     bias = yaml.load(open(config_file, 'r'))
     if not list_:
         list_ = bias.keys()
@@ -34,6 +50,7 @@ def setV(v, ch):
     print('bias: %.3f, ch: %d' % (v, ch))
     bias[ch] = v
     vsrc.setV(bias[ch], ch)
+    buf.add(62, build_ttag(ch, v))
     save()
 if __name__ == '__main__':
     reset()
