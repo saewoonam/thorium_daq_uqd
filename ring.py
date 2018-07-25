@@ -39,7 +39,9 @@ class RingArray(np.ndarray):
         if obj is None: return
         self.info = getattr(obj, 'info', None)
 
-    def add(self, data):
+    def add(self, data, new_start_index=-1):
+        if new_start_index > 0:
+            self.start_index = new_start_index
         idx = (self.start_index + np.arange(len(data)) ) % len(self)
         self[idx] = data
         self.start_index = self.start_index + len(data)
