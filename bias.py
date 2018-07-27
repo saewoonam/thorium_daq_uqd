@@ -5,6 +5,8 @@ import time
 import struct
 import shm_buffer
 
+LOW = 1.3
+HIGH = 1.8
 buf = shm_buffer.Buffer()
 yaml = ruamel.yaml.YAML()
 config_file = 'bias.yaml'
@@ -32,7 +34,8 @@ def build_ttag_time():
     out = struct.unpack('Q', msg)[0]
     return out
 
-def reset(list_=[]):
+def reset(list_=[], high=True):
+    global LOW
     print('About to reset')
     buf.add(63, build_ttag_time())
     bias = yaml.load(open(config_file, 'r'))
@@ -42,6 +45,16 @@ def reset(list_=[]):
         setV(0, ch)
     time.sleep(1)
     for ch in list_:
+        if ch==1 and (not high):
+            bias[ch] = 1.6
+        elif ch==1 and high:
+            bias[ch] = 1.6
+        if ch==3 and (not high):
+            bias[ch] = LOW
+        elif ch==3 and high:
+            bias[ch] = HIGH
+        if ch==3:
+            print('high: %r, bias ch4 %f' %(high, bias[ch]))
         setV(bias[ch], ch)
     time.sleep(0.2)
 
@@ -53,6 +66,6 @@ def setV(v, ch):
     buf.add(62, build_ttag(ch, v))
     save()
 if __name__ == '__main__':
-    reset()
+    reset(high=True)
     # save()
 
