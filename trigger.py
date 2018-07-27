@@ -4,6 +4,7 @@ import shm_buffer
 yaml = YAML()
 cmd = shm_buffer.CmdBuffer()
 
+
 def set_trigger(ch, level):
     f = shm_buffer.shm.read_file('settings.yaml')
     new_settings = yaml.load(f)
