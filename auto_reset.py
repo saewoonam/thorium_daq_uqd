@@ -36,7 +36,8 @@ if __name__ == '__main__':
         state = 'cold'
     else:
         state = 'hot'
-
+    high = True
+    print('initial high: %r' % high)
     while True:
         if state == 'cold':
              while True:
@@ -53,7 +54,10 @@ if __name__ == '__main__':
                     logger.info('fridge cold: %.2fK' % temp)
                     state = 'cold'
                     logger.info("reset detector")
-                    bias.reset()
+                    print('high is %r' % high)
+                    bias.reset(high=high)
+                    high = not high
+                    print('next high is %r' % high)
                     print('reload shm_buffer in case it changed')
                     reload(shm_buffer)
                     buf = shm_buffer.Buffer()
