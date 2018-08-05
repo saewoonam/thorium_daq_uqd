@@ -7,6 +7,8 @@ import logzero
 import os.path
 from logzero import logger
 import saveStyle
+import zmqLock
+
 
 logzero.loglevel(logging.INFO)
 
@@ -26,7 +28,8 @@ class Buffer(object):
             print('create new')
             self.new(size=size)
         # self.cmd = CmdBuffer()
- 
+        self.ttag_lock = zmqLock.lock('ttag_lock')
+
     def connect(self):
         print('Try to connect')
         self._ch = shm.connect('ch')
@@ -97,11 +100,12 @@ class Buffer(object):
             self.addarray([ch], [t])
 
     def addarray(self, ch, t):
-        self.indices[0] = self.indices[0] + len(ch)
-        self.ch.add(ch, self.datapoints)  # need to specify where to add
-        self.t.add(t, self.datapoints)  # to work in other processes
-        self.indices[1] = self.indices[1] + len(ch)
-        self.realtime[0] = time.time()
+        with self.ttag_lock:
+            self.indices[0] = self.indices[0] + len(ch)
+            self.ch.add(ch, self.datapoints)  # need to specify where to add
+            self.t.add(t, self.datapoints)  # to work in other processes
+            self.indices[1] = self.indices[1] + len(ch)
+            self.realtime[0] = time.time()
 
 
     def __del__(self):
